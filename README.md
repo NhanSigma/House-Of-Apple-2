@@ -232,7 +232,7 @@ Offset | Lăng kính struct _IO_FILE       | Lăng kính struct _wide_data
 0x160  | ... Vùng chứa NULL ...          | <=== Đích đến của biến _lock
 ```
 
-Đây chỉ là 1 phiên bản tối ưu và dễ nhìn nhất, chúng ta sẽ còn 1 phiên bản khác nữa đó là hay vì tại vị trí `_wide_vtable` ta cho nó trỏ vào `base + 0xe8` thì ta sẽ trỏ nó vào `base + 0x28`
+Đây chỉ là 1 phiên bản tối ưu và dễ nhìn nhất, chúng ta sẽ còn 1 phiên bản khác nữa đó là thay vì tại vị trí `_wide_vtable` ta cho nó trỏ vào `base + 0xe8` thì ta sẽ trỏ nó vào `base + 0x28`
 
 ```md
 =================[ EXTREME OVERLAPPING PAYLOAD (0xe8 Bytes) ]=================
