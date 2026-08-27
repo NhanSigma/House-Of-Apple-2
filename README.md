@@ -96,7 +96,7 @@ wint_t _IO_wfile_overflow (FILE *f, wint_t wch)
 
 Giờ ta cần ép luồng thực thi `_IO_wdoallocbuf (f)`. Đầu tiên là vượt qua nhánh cấm ghi bằng cách ta set `_flags` ( ở offset 0x00 ) là chuỗi `  sh;`. Chuỗi này khi dịch sang hex là 0x3b687320 không chứa bit `_IO_NO_WRITES` ( 0x8 ).
 
-Để thỏa mãn điều kiện tiếp theo, ta sẽ dùng kỹ thuật **Overlapping** ( trỏ `_wide_data` về lại chính đầu của `_IO_FILE fake`). Do đó, `f->_wide_data->_IO_write_base` thực chất sẽ trỏ vào vùng toàn byte null ( `_IO_FILE fake + 0x20:0x28` ), làm cho điều kiện == NULL trở thành True. `_IO_wdoallocbuf(f)` được gọi.
+Để thỏa mãn điều kiện tiếp theo, ta sẽ dùng kỹ thuật **Overlapping** ( trỏ `_wide_data` về lại chính đầu của `_IO_FILE fake`). Do đó, `f->_wide_data->_IO_write_base` thực chất sẽ trỏ vào vùng toàn byte null làm cho điều kiện == NULL trở thành True. `_IO_wdoallocbuf(f)` được gọi.
 
 ## 3. Chặng 3 : Kích nổ Shell tại `_IO_wdoallocbuf`
 
